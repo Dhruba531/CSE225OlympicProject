@@ -268,7 +268,7 @@ void deleteRecord(vector<Record> &records) {
     }
 }
 
-******// Here is the problem Function to search medal statistics by country
+
 void searchStatisticsByCountry(vector<Record> &records) {
     cout << "Enter the country name to search for medal statistics: ";
     string countryName;
