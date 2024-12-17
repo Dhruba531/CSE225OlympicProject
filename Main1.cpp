@@ -1,366 +1,971 @@
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <vector>
 #include <string>
+#include <vector>
+#include <iomanip>
+#include <limits>
+#include <thread>
+#include <chrono>
+#include <conio.h>
 #include <unordered_map>
-#include <algorithm>
+#include <filesystem>
+#include <set>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
-// Define a structure to hold a record (athlete details)
-struct Record {
-    string athleteID;
-    string name;
-    string gender;
-    string type;
-    string countryCode;
-    string countryName;
-    string nativeLanguage;
-    string eventType;
-    string eventName;
-    string dob;  // Date of birth
-    string medalID;
-    string medalType;
-    string medalRank;
-    string eventDate;
-    string opponentName;
-    string game;
-    string startTime;
-    string endTime;
-    string venue;
-    string stadium;
 
-    // Function to convert a Record into a CSV line
-    string toCSV() const {
-        stringstream ss;
-        ss << athleteID << "," << name << "," << gender << "," << type << ","
-           << countryCode << "," << countryName << "," << nativeLanguage << ","
-           << eventType << "," << eventName << "," << dob << ","
-           << medalID << "," << medalType << "," << medalRank << ","
-           << eventDate << "," << opponentName << "," << game << ","
-           << startTime << "," << endTime << "," << venue << "," << stadium;
-        return ss.str();
-    }
+// Struct for athlete records
+
+struct Athlete {
+    string athleteID, name, gender, type, countryName, nativeLanguage;
+    string eventType, eventName, dob, medalID, medalType, medalRank;
+    string opponentName, game, eventStartTime, eventEndTime, venue, stadium;
+    Athlete* next;
+    bool isChanged = false;
 };
 
-// Helper function to trim leading and trailing spaces
-string trim(const string &str) {
-    size_t first = str.find_first_not_of(" \t");
-    size_t last = str.find_last_not_of(" \t");
-    return (first == string::npos || last == string::npos) ? "" : str.substr(first, last - first + 1);
-}
+// Global variables
 
-// Helper function to convert a string to lowercase
-string toLower(const string &str) {
-    string lowerStr = str;
-    transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
-    return lowerStr;
-}
+const string userDatabasePath = "users.dat";
+set<int> changedIndices;
 
-// Function to read records from the CSV file
-vector<Record> readCSV(const string &filename) {
-    vector<Record> records;
-    ifstream file(filename);
-    string line;
-    while (getline(file, line)) {
-        stringstream ss(line);
-        Record record;
-        getline(ss, record.athleteID, ',');
-        getline(ss, record.name, ',');
-        getline(ss, record.gender, ',');
-        getline(ss, record.type, ',');
-        getline(ss, record.countryCode, ',');
-        getline(ss, record.countryName, ',');
-        getline(ss, record.nativeLanguage, ',');
-        getline(ss, record.eventType, ',');
-        getline(ss, record.eventName, ',');
-        getline(ss, record.dob, ',');
-        getline(ss, record.medalID, ',');
-        getline(ss, record.medalType, ',');
-        getline(ss, record.medalRank, ',');
-        getline(ss, record.eventDate, ',');
-        getline(ss, record.opponentName, ',');
-        getline(ss, record.game, ',');
-        getline(ss, record.startTime, ',');
-        getline(ss, record.endTime, ',');
-        getline(ss, record.venue, ',');
-        getline(ss, record.stadium);
+Athlete* head = nullptr; // Linked list head
+unordered_map<string, string> userDatabase;
 
-        records.push_back(record);
-    }
-    return records;
-}
 
-// Function to write records to the CSV file
-void writeCSV(const string &filename, const vector<Record> &records) {
-    ofstream file(filename);
-    for (const auto &record : records) {
-        file << record.toCSV() << endl;
+
+// Function prototypes
+
+void animatedText();
+void authenticationPage();
+void registerUser();
+bool loginUser();
+string readPassword();
+void mainMenu();
+void loadFromCSV();
+bool saveToCSV();
+void viewRecords();
+void searchAthlete();
+void addAthlete();
+void updateAthlete();
+void deleteAthlete();
+void showChangedRecords();
+void insertAthlete(const Athlete& athlete);
+Athlete* searchAthleteByID(const string& id);
+void displayAthlete(const Athlete& athlete);
+void deleteAllNodes();
+void ensureDatabaseFileExists();
+void saveUserToFile(const string& email, const string& password);
+void updateCSVRecord(const string& id, const Athlete& updatedAthlete);
+void displayThankYouMessage();
+void displayGroupMates();
+
+
+// Animation helper
+
+void animatedText(const string& text, int delay) {
+    for (char ch : text) {
+        cout << ch;
+        this_thread::sleep_for(chrono::milliseconds(delay));
     }
 }
 
-// Function to display a record
-void displayRecord(const Record &record) {
-    cout << record.athleteID << ", " << record.name << ", " << record.gender << ", "
-         << record.type << ", " << record.countryCode << ", " << record.countryName << ", "
-         << record.nativeLanguage << ", " << record.eventType << ", " << record.eventName << ", "
-         << record.dob << ", " << record.medalID << ", " << record.medalType << ", "
-         << record.medalRank << ", " << record.eventDate << ", " << record.opponentName << ", "
-         << record.game << ", " << record.startTime << ", " << record.endTime << ", "
-         << record.venue << ", " << record.stadium << endl;
-}
+// Authentication Page
 
-// Function to view records
-void viewRecords(const vector<Record> &records) {
-    int numRecords;
-    cout << "How many records would you like to see? ";
-    cin >> numRecords;
-    for (int i = 0; i < numRecords && i < records.size(); i++) {
-        displayRecord(records[i]);
-    }
-}
+void authenticationPage() {
+    bool loggedIn = false;
 
-// Function to search for a record (by Athlete ID or Name)
-void searchRecord(const vector<Record> &records) {
-    cout << "Search by: (1) Athlete ID, (2) Athlete Name: ";
-    int searchChoice;
-    cin >> searchChoice;
+    while (!loggedIn) {
+        int choice;
+        cout << "1. Login\n2. Register\nChoose an option: ";
+        cin >> choice;
 
-    string query;
-    bool found = false;
+        if (cin.fail()) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            animatedText("Invalid option. Please enter 1 or 2.\n", 10);
+            continue;
+        }
 
-    switch (searchChoice) {
-        case 1:
-            cout << "Enter Athlete ID: ";
-            cin >> query;
-            for (const auto &record : records) {
-                if (record.athleteID == query) {
-                    displayRecord(record);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                cout << "Record not found!" << endl;
-            }
-            break;
-        case 2:
-            cout << "Enter Athlete Name: ";
-            cin.ignore();
-            getline(cin, query);
-            for (const auto &record : records) {
-                if (record.name == query) {
-                    displayRecord(record);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                cout << "Record not found!" << endl;
-            }
-            break;
-        default:
-            cout << "Invalid choice!" << endl;
-            break;
-    }
-}
-
-// Function to add a new record
-void addRecord(vector<Record> &records) {
-    Record newRecord;
-    cout << "Enter Athlete ID: ";
-    cin >> newRecord.athleteID;
-    cout << "Enter Athlete Name: ";
-    cin >> newRecord.name;
-    cout << "Enter Gender: ";
-    cin >> newRecord.gender;
-    cout << "Enter Type: ";
-    cin >> newRecord.type;
-    cout << "Enter Country Code: ";
-    cin >> newRecord.countryCode;
-    cout << "Enter Country Name: ";
-    cin >> newRecord.countryName;
-    cout << "Enter Native Language: ";
-    cin >> newRecord.nativeLanguage;
-    cout << "Enter Event Type: ";
-    cin >> newRecord.eventType;
-    cout << "Enter Event Name: ";
-    cin >> newRecord.eventName;
-    cout << "Enter Date of Birth: ";
-    cin >> newRecord.dob;
-    cout << "Enter Medal ID: ";
-    cin >> newRecord.medalID;
-    cout << "Enter Medal Type: ";
-    cin >> newRecord.medalType;
-    cout << "Enter Medal Rank: ";
-    cin >> newRecord.medalRank;
-    cout << "Enter Event Date: ";
-    cin >> newRecord.eventDate;
-    cout << "Enter Opponent Name: ";
-    cin >> newRecord.opponentName;
-    cout << "Enter Game Type: ";
-    cin >> newRecord.game;
-    cout << "Enter Start Time: ";
-    cin >> newRecord.startTime;
-    cout << "Enter End Time: ";
-    cin >> newRecord.endTime;
-    cout << "Enter Venue: ";
-    cin >> newRecord.venue;
-    cout << "Enter Stadium: ";
-    cin >> newRecord.stadium;
-
-    records.push_back(newRecord);
-    cout << "New record added successfully!" << endl;
-}
-
-// Function to update an existing record
-void updateRecord(vector<Record> &records) {
-    cout << "Enter Athlete ID to update: ";
-    string athleteID;
-    cin >> athleteID;
-
-    auto it = find_if(records.begin(), records.end(), [&](const Record &record) {
-        return record.athleteID == athleteID;
-    });
-
-    if (it != records.end()) {
-        cout << "Record found! Current record details:" << endl;
-        displayRecord(*it);
-
-        cout << "Enter the field to update (1) Athlete Name, (2) Medal Type: ";
-        int field;
-        cin >> field;
-
-        switch (field) {
+        switch (choice) {
             case 1:
-                cout << "Enter new Athlete Name: ";
-                cin >> it->name;
+                loggedIn = loginUser();
                 break;
             case 2:
-                cout << "Enter new Medal Type: ";
-                cin >> it->medalType;
+                registerUser();
                 break;
             default:
-                cout << "Invalid choice!" << endl;
+                animatedText("Invalid option. Try again.\n", 10);
         }
-        cout << "Record updated!" << endl;
-    } else {
-        cout << "Record not found!" << endl;
-    }
-}
-
-// Function to delete a record
-void deleteRecord(vector<Record> &records) {
-    cout << "Enter Athlete ID to delete: ";
-    string athleteID;
-    cin >> athleteID;
-
-    auto it = remove_if(records.begin(), records.end(), [&](const Record &record) {
-        return record.athleteID == athleteID;
-    });
-
-    if (it != records.end()) {
-        records.erase(it, records.end());
-        cout << "Record deleted!" << endl;
-    } else {
-        cout << "Record not found!" << endl;
     }
 }
 
 
-void searchStatisticsByCountry(vector<Record> &records) {
-    cout << "Enter the country name to search for medal statistics: ";
-    string countryName;
-    cin.ignore();  // To ignore any previous newline character
-    getline(cin, countryName);
+// Register User
+void registerUser() {
+    string email, password;
+    while (true) {
+        cout << "Enter your Email: ";
+        cin >> email;
 
-    // Trim and convert the input to lowercase for case-insensitive comparison
-    countryName = trim(countryName);  // Ensure no leading/trailing spaces
-    string lowerCountryName = toLower(countryName);  // Convert to lowercase
+        // Check email is already registered ????
+        if (userDatabase.find(email) != userDatabase.end()) {
+            animatedText("Email already registered. Try logging in.\n", 10);
+        } else {
+            break;
+        }
+    }
 
-    // Debugging: Print out the trimmed and lowercased input country name
-    cout << "Searching for country (trimmed and lowercased): " << lowerCountryName << endl;
 
-    // Maps to store medal counts
-    unordered_map<string, int> goldMedals;
-    unordered_map<string, int> silverMedals;
-    unordered_map<string, int> bronzeMedals;
+    password = readPassword();
 
-    // Iterate over the records to count medals
-    for (const auto &record : records) {
-        // Trim and convert the medal type to lowercase for comparison
-        string medalType = trim(record.medalType);  // Ensure no newlines or spaces
-        string lowerRecordCountry = toLower(trim(record.countryName));  // Ensure no spaces and lowercase comparison
 
-        // Check if the country matches (case-insensitive)
-        if (lowerRecordCountry == lowerCountryName) {
-            if (medalType == "Gold Medal") {
-                goldMedals[record.countryName]++;
-            } else if (medalType == "Silver Medal") {
-                silverMedals[record.countryName]++;
-            } else if (medalType == "Bronze Medal") {
-                bronzeMedals[record.countryName]++;
+    userDatabase[email] = password;
+    saveUserToFile(email, password);
+    animatedText("Registration completed successfully. You may now proceed to log in.......\n", 10);
+
+}
+// Ensure database file exists
+void ensureDatabaseFileExists() {
+    ifstream file(userDatabasePath);
+    if (!file) {
+        ofstream newFile(userDatabasePath);
+        if (newFile.is_open()) {
+           // cout << "New user database successfully created at: " << userDatabasePath << endl;
+        } else {
+            cerr << "Error: Could not create database file at " << userDatabasePath << endl;
+            exit(1);
+        }
+    }
+    file.close();
+}
+
+// Function to load user data from a file
+
+void loadUsersFromFile() {
+    ifstream file(userDatabasePath);
+    if (!file.is_open()) {
+        animatedText("No existing user database found. Initializing a new one.\n", 10);
+        return;
+    }
+
+    string email, password;
+    while (getline(file, email) && getline(file, password)) {
+        userDatabase[email] = password;
+    }
+    file.close();
+
+      //animatedText("User data loaded successfully.\n", 50);
+}
+
+
+
+// Function to add a new user to the database file
+
+void saveUserToFile(const string& email, const string& password) {
+    ofstream file(userDatabasePath, ios::app);
+    if (!file.is_open()) {
+        animatedText("Error: Failed to save user data..\n", 15);
+        return;
+    }
+    file << email << "\n" << password << "\n";
+    file.close();
+}
+
+
+
+
+// Login User
+
+bool loginUser() {
+    string email, password;
+    cout << "Enter your Email: ";
+    cin >> email;
+    password = readPassword();
+
+    if (userDatabase.find(email) != userDatabase.end() && userDatabase[email] == password) {
+        animatedText("Login successful!\n", 10);
+        return true;
+    } else {
+        animatedText("Invalid email or password.\n", 10);
+        return false;
+    }
+}
+
+// Function to read password with masking
+
+string readPassword() {
+    string password;
+    char ch;
+    cout << "Enter Password: ";
+    while ((ch = _getch()) != '\r') { // '\r' is Enter
+        if (ch == '\b') {             // Handle backspace
+            if (!password.empty()) {
+                cout << "\b \b";
+                password.pop_back();
+            }
+        } else {
+            cout << '*';
+            password += ch;
+        }
+    }
+    cout << "\n";
+    return password;
+}
+
+// Helper function to count the number of rows in a CSV file
+
+int countLinesInFile(const string& filePath) {
+    ifstream file(filePath);
+    int lineCount = 0;
+    string line;
+    while (getline(file, line)) {
+        lineCount++;
+    }
+    return lineCount;
+}
+
+
+// Function to load data from a CSV file
+
+void loadFromCSV() {
+    ifstream file("athletes.csv");
+    if (!file.is_open()) {
+       animatedText("No CSV file found. Initializing a new file......\n\n", 15);
+        return;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        Athlete athlete;
+        size_t pos = 0, index = 0;
+        string fields[18];
+
+        while ((pos = line.find(',')) != string::npos) {
+            fields[index++] = line.substr(0, pos);
+            line.erase(0, pos + 1);
+        }
+        fields[index] = line;
+
+        athlete = {fields[0], fields[1], fields[2], fields[3], fields[4], fields[5],
+                   fields[6], fields[7], fields[8], fields[9], fields[10], fields[11],
+                   fields[12], fields[13], fields[14], fields[15], fields[16], fields[17], nullptr};
+        insertAthlete(athlete);
+    }
+    file.close();
+    //animatedText("Data loaded from CSV successfully.\n", 15);
+}
+
+
+
+
+
+
+// View all records
+
+
+void viewRecords() {
+    if (!head) {
+        animatedText("No records available.\n", 15);
+        return;
+    }
+
+    while (true) {
+        cout << "1. View All Records\n2. View Paginated Records (5 per page)\n3. Show a specific record by index\n4. Back to Main Menu\nChoose: ";
+        int choice;
+
+        // Input validation
+        if (!(cin >> choice)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            animatedText("Invalid option. Please input a valid number (1-4).\n", 15);
+            continue;
+        }
+
+        switch (choice) {
+            case 1: {
+                Athlete* current = head;
+                int totalRecords = 0;
+
+                while (current) {
+                    displayAthlete(*current);
+                    current = current->next;
+                    totalRecords++;
+                }
+                cout << "Total Records: " << totalRecords << "\n";
+                return;
+            }
+            case 2: {
+                Athlete* current = head;
+                vector<Athlete*> pages;
+                int totalRecords = 0;
+
+                while (current) {
+                    totalRecords++;
+                    pages.push_back(current);
+                    for (int i = 0; i < 5 && current; ++i) {
+                        current = current->next;
+                    }
+                }
+
+                int totalPages = pages.size();
+                int currentPage = 0;
+
+                while (true) {
+                    // Display the current page
+                    current = pages[currentPage];
+                    cout << "\nPage " << (currentPage + 1) << " of " << totalPages << ":\n";
+                    for (int i = 0; i < 5 && current; ++i) {
+                        displayAthlete(*current);
+                        current = current->next;
+                    }
+
+                    // Navigation options
+                    char nav;
+                    cout << "\n[N] Next Page, [P] Previous Page, [Q] Quit Viewing, [B] Back to Main Menu: ";
+                    cin >> nav;
+                    nav = tolower(nav);
+
+                    if (nav == 'q') return; // Quit viewing
+                    if (nav == 'b') return; // Back to main menu
+                    if (nav == 'n') {
+                        if (currentPage + 1 < totalPages) {
+                            currentPage++; // Move to the next page
+                        } else {
+                            animatedText("You are on the last page.\n", 10);
+                        }
+                    } else if (nav == 'p') {
+                        if (currentPage > 0) {
+                            currentPage--; // Move to the previous page
+                        } else {
+                            animatedText("You are on the first page.\n", 10);
+                        }
+                    } else {
+                        animatedText("Invalid input. Press 'N', 'P', 'Q', or 'B'.\n", 10);
+                    }
+                }
+                break;
+            }
+            case 3: {
+                cout << "Please enter the index of the record you wish to view: ";
+                int recordIndex;
+                if (!(cin >> recordIndex)) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    animatedText("Invalid input. Please enter a valid index.\n", 15);
+                    break;
+                }
+
+                Athlete* current = head;
+                int count = 1;
+
+                while (current && count < recordIndex) {
+                    current = current->next;
+                    count++;
+                }
+
+                if (current) {
+                    displayAthlete(*current);
+                } else {
+                    animatedText("No record found at the specified index.\n", 15);
+                }
+                break;
+            }
+            case 4: {
+                animatedText("Returning to main menu.....\n", 10);
+                return;
+            }
+            default: {
+                animatedText("Invalid option. Please input a valid number (1-4).\n", 15);
             }
         }
     }
-
-    // Output the medal counts for the country
-    cout << "Medals for " << countryName << ":" << endl;
-    cout << "Gold: " << goldMedals[countryName] << endl;
-    cout << "Silver: " << silverMedals[countryName] << endl;
-    cout << "Bronze: " << bronzeMedals[countryName] << endl;
 }
 
 
+
+
+
+
+// Search for an athlete record
+
+
+void searchAthlete() {
+    if (!head) {
+        animatedText("No records available.\n", 15);
+        return;
+    }
+
+    while (true) {
+        cout << "\n1. Unique Search (Athlete ID, Name, Medal ID)\n";
+        cout << "2. Common Search (Gender, Type, Country Name, etc.)\n";
+        cout << "3. Back to Main Menu\nChoose: ";
+
+        int choice;
+        if (!(cin >> choice)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            animatedText("Invalid choice. Please input a valid number (1-3).\n", 15);
+            continue;
+        }
+
+        if (choice == 3) {
+            animatedText("Returning to main menu...\n", 10);
+            return;
+        }
+
+        cout << "Please enter your search query: ";
+        cin.ignore();
+        string query;
+        getline(cin, query);
+
+        Athlete* current = head;
+        bool found = false;
+
+        while (current) {
+            if ((choice == 1 && (current->athleteID == query || current->name == query || current->medalID == query)) ||
+                (choice == 2 && (current->gender == query || current->type == query || current->countryName == query ||
+                                 current->nativeLanguage == query || current->eventType == query || current->eventName == query ||
+                                 current->dob == query || current->medalType == query || current->medalRank == query ||
+                                 current->opponentName == query || current->game == query || current->eventStartTime == query ||
+                                 current->eventEndTime == query || current->venue == query || current->stadium == query))) {
+                displayAthlete(*current);
+                found = true;
+            }
+            current = current->next;
+        }
+
+        if (!found) {
+            animatedText("No matching records found.\n", 15);
+        }
+    }
+}
+
+
+
+
+// Add a new record
+
+void addAthlete() {
+    Athlete newAthlete;
+
+    cout << "Enter Athlete ID (Leave blank if not applicable): ";
+    getline(cin, newAthlete.athleteID);
+
+    cout << "Enter Name (Leave blank if not applicable): ";
+    getline(cin, newAthlete.name);
+
+    cout << "Enter Gender (Leave blank if not applicable): ";
+    getline(cin, newAthlete.gender);
+
+    cout << "Enter Type (Leave blank if not applicable): ";
+    getline(cin, newAthlete.type);
+
+    cout << "Enter Country Name (Leave blank if not applicable): ";
+    getline(cin, newAthlete.countryName);
+
+    cout << "Enter Native Language (Leave blank if not applicable): ";
+    getline(cin, newAthlete.nativeLanguage);
+
+    cout << "Enter Event Type (Leave blank if not applicable): ";
+    getline(cin, newAthlete.eventType);
+
+    cout << "Enter Event Name (Leave blank if not applicable): ";
+    getline(cin, newAthlete.eventName);
+
+    cout << "Enter Date of Birth (Leave blank if not applicable): ";
+    getline(cin, newAthlete.dob);
+
+    cout << "Enter Medal ID (Leave blank if not applicable): ";
+    getline(cin, newAthlete.medalID);
+
+    cout << "Enter Medal Type (Leave blank if not applicable): ";
+    getline(cin, newAthlete.medalType);
+
+    cout << "Enter Medal Rank (Leave blank if not applicable): ";
+    getline(cin, newAthlete.medalRank);
+
+    cout << "Enter Opponent Name (Leave blank if not applicable): ";
+    getline(cin, newAthlete.opponentName);
+
+    cout << "Enter Game (Leave blank if not applicable): ";
+    getline(cin, newAthlete.game);
+
+    cout << "Enter Event Start Time (Leave blank if not applicable): ";
+    getline(cin, newAthlete.eventStartTime);
+
+    cout << "Enter Event End Time (Leave blank if not applicable): ";
+    getline(cin, newAthlete.eventEndTime);
+
+    cout << "Enter Venue (Leave blank if not applicable): ";
+    getline(cin, newAthlete.venue);
+
+    cout << "Enter Stadium (Leave blank if not applicable): ";
+    getline(cin, newAthlete.stadium);
+
+
+    insertAthlete(newAthlete);
+
+    // Save new record to the CSV
+    ofstream file("athletes.csv", ios::app);
+    if (file.is_open()) {
+        file << newAthlete.athleteID << "," << newAthlete.name << "," << newAthlete.gender << ","
+             << newAthlete.type << "," << newAthlete.countryName << "," << newAthlete.nativeLanguage << ","
+             << newAthlete.eventType << "," << newAthlete.eventName << "," << newAthlete.dob << ","
+             << newAthlete.medalID << "," << newAthlete.medalType << "," << newAthlete.medalRank << ","
+             << newAthlete.opponentName << "," << newAthlete.game << "," << newAthlete.eventStartTime << ","
+             << newAthlete.eventEndTime << "," << newAthlete.venue << "," << newAthlete.stadium << "\n";
+        file.close();
+        animatedText("New record added successfully.\n", 10);
+    } else {
+        animatedText("Error: Unable to save the record to CSV file.\n", 10);
+    }
+}
+
+// Save data to CSV
+
+bool saveToCSV() {
+    if (!saveToCSV()) {
+    animatedText("Error: Failed to save the record to CSV.\n", 15);
+} else {
+    animatedText("Record added successfully.\n", 5);
+}
+
+
+}
+
+// Update an existing record
+
+
+void updateAthlete() {
+    if (!head) {
+        animatedText("No records available.\n", 10);
+        return;
+    }
+
+    animatedText("Enter Athlete ID to update: ", 15);
+    string id;
+    cin >> id;
+    cin.ignore();
+
+    Athlete* athlete = searchAthleteByID(id);
+    if (!athlete) {
+        animatedText("No record found for the specified Athlete ID.\n", 25);
+        return;
+    }
+
+    cout << "Updating record for Athlete ID: " << id << "\n";
+
+    cout << "Enter new Name (current: " << athlete->name << "): ";
+    getline(cin, athlete->name);
+
+    cout << "Enter new Gender (current: " << athlete->gender << "): ";
+    getline(cin, athlete->gender);
+
+    cout << "Enter new Type (current: " << athlete->type << "): ";
+    getline(cin, athlete->type);
+
+    cout << "Enter new Country Name (current: " << athlete->countryName << "): ";
+    getline(cin, athlete->countryName);
+
+    cout << "Enter new Native Language (current: " << athlete->nativeLanguage << "): ";
+    getline(cin, athlete->nativeLanguage);
+
+    cout << "Enter new Event Type (current: " << athlete->eventType << "): ";
+    getline(cin, athlete->eventType);
+
+    cout << "Enter new Event Name (current: " << athlete->eventName << "): ";
+    getline(cin, athlete->eventName);
+
+    cout << "Enter new Date of Birth (current: " << athlete->dob << "): ";
+    getline(cin, athlete->dob);
+
+    cout << "Enter new Medal ID (current: " << athlete->medalID << "): ";
+    getline(cin, athlete->medalID);
+
+    cout << "Enter new Medal Type (current: " << athlete->medalType << "): ";
+    getline(cin, athlete->medalType);
+
+    cout << "Enter new Medal Rank (current: " << athlete->medalRank << "): ";
+    getline(cin, athlete->medalRank);
+
+    cout << "Enter new Opponent Name (current: " << athlete->opponentName << "): ";
+    getline(cin, athlete->opponentName);
+
+    cout << "Enter new Game (current: " << athlete->game << "): ";
+    getline(cin, athlete->game);
+
+    cout << "Enter new Event Start Time (current: " << athlete->eventStartTime << "): ";
+    getline(cin, athlete->eventStartTime);
+
+    cout << "Enter new Event End Time (current: " << athlete->eventEndTime << "): ";
+    getline(cin, athlete->eventEndTime);
+
+    cout << "Enter new Venue (current: " << athlete->venue << "): ";
+    getline(cin, athlete->venue);
+
+    cout << "Enter new Stadium (current: " << athlete->stadium << "): ";
+    getline(cin, athlete->stadium);
+
+    updateCSVRecord(id, *athlete);
+    animatedText("\nRecord updated successfully.\n", 15);
+
+    int currentIndex = countLinesInFile("athletes.csv");
+    changedIndices.insert(currentIndex);
+    animatedText("Record updated successfully and marked as changed.\n", 15);
+}
+
+//updateCSVRecord
+
+void updateCSVRecord(const string& id, const Athlete& updatedAthlete) {
+    ifstream inputFile("athletes.csv");
+    if (!inputFile.is_open()) {
+        animatedText("Error: Unable to open CSV file.\n", 15);
+        return;
+    }
+
+    vector<string> lines;
+    string line;
+
+    while (getline(inputFile, line)) {
+        size_t pos = line.find(',');
+        if (pos != string::npos && line.substr(0, pos) == id) {
+
+
+            ostringstream updatedLine;
+            updatedLine << updatedAthlete.athleteID << "," << updatedAthlete.name << "," << updatedAthlete.gender << ","
+                        << updatedAthlete.type << "," << updatedAthlete.countryName << "," << updatedAthlete.nativeLanguage << ","
+                        << updatedAthlete.eventType << "," << updatedAthlete.eventName << "," << updatedAthlete.dob << ","
+                        << updatedAthlete.medalID << "," << updatedAthlete.medalType << "," << updatedAthlete.medalRank << ","
+                        << updatedAthlete.opponentName << "," << updatedAthlete.game << "," << updatedAthlete.eventStartTime << ","
+                        << updatedAthlete.eventEndTime << "," << updatedAthlete.venue << "," << updatedAthlete.stadium;
+            lines.push_back(updatedLine.str());
+        } else {
+            lines.push_back(line);
+        }
+    }
+    inputFile.close();
+
+    // updated records back to the file
+
+    ofstream outputFile("athletes.csv", ios::trunc);
+    if (!outputFile.is_open()) {
+        animatedText("Error: Unable to write to the CSV file.\n", 15);
+        return;
+    }
+
+    for (const string& updatedLine : lines) {
+        outputFile << updatedLine << "\n";
+    }
+    outputFile.close();
+}
+
+
+// Delete records
+
+void deleteAthlete() {
+    if (!head) {
+        animatedText("No records available.\n", 25);
+        return;
+    }
+
+    cout << "Delete by:\n1. Athlete ID\n2. Index Number\nChoose an option: ";
+    int choice;
+    cin >> choice;
+    cin.ignore();
+
+    string id;
+    int index = 0;
+    bool found = false;
+    Athlete* deletedAthlete = nullptr; // store the deleted athlete's information
+
+
+    if (choice == 1) {
+        cout << "Enter Athlete ID to delete: ";
+        cin >> id;
+        cin.ignore();
+    } else if (choice == 2) {
+        cout << "Enter index number to delete: ";
+        cin >> index;
+        cin.ignore();
+    } else {
+        animatedText("Invalid choice. Returning to main menu...\n", 25);
+        return;
+    }
+    // Update CSV File
+    ifstream inputFile("athletes.csv");
+    if (!inputFile.is_open()) {
+        animatedText("Error: Unable to open CSV file.\n", 25);
+        return;
+    }
+
+    vector<string> lines;
+    string line;
+    int currentIndex = 1;
+
+
+    while (getline(inputFile, line)) {
+        if ((choice == 1 && line.substr(0, line.find(',')) == id) ||
+            (choice == 2 && currentIndex == index)) {
+            found = true;
+
+            stringstream ss(line);
+            string fields[18];
+            for (int i = 0; i < 18 && getline(ss, fields[i], ','); i++);
+
+            deletedAthlete = new Athlete{fields[0], fields[1], fields[2], fields[3], fields[4], fields[5],
+                                         fields[6], fields[7], fields[8], fields[9], fields[10], fields[11],
+                                         fields[12], fields[13], fields[14], fields[15], fields[16], fields[17], nullptr};
+        } else {
+            lines.push_back(line);
+        }
+        currentIndex++;
+    }
+    inputFile.close();
+
+    if (!found) {
+        animatedText("No matching record found.\n", 15);
+        return;
+    }
+
+    // Write updated data back to the CSV
+
+    ofstream outputFile("athletes.csv", ios::trunc);
+    if (!outputFile.is_open()) {
+        animatedText("Error: Unable to write to CSV file.\n", 25);
+        return;
+    }
+
+    for (const string& remainingLine : lines) {
+        outputFile << remainingLine << "\n";
+    }
+    outputFile.close();
+
+
+    // Remove from linked list
+
+    Athlete* current = head;
+    Athlete* prev = nullptr;
+    currentIndex = 1;
+
+    while (current) {
+        if ((choice == 1 && current->athleteID == id) ||
+            (choice == 2 && currentIndex == index)) {
+            if (!prev) {
+                head = current->next;
+            } else {
+                prev->next = current->next;
+            }
+            delete current;
+            break;
+        }
+        prev = current;
+        current = current->next;
+        currentIndex++;
+    }
+
+   // Display Deleted Record Information
+
+    if (deletedAthlete) {
+        animatedText("The following record was deleted:\n", 25);
+        displayAthlete(*deletedAthlete);
+        delete deletedAthlete;
+    }
+
+    animatedText("Record deleted successfully.\n", 25);
+}
+
+
+// Show changed records
+
+void showChangedRecords() {
+    if (changedIndices.empty()) {
+        animatedText("No changes have been made to the records.\n", 25);
+        return;
+    }
+
+    ifstream inputFile("athletes.csv");
+    if (!inputFile.is_open()) {
+        animatedText("Error: Unable to open CSV file.\n", 25);
+        return;
+    }
+
+    string line;
+    int currentIndex = 1;
+
+    cout << "Changed Records:\n";
+    while (getline(inputFile, line)) {
+        if (changedIndices.count(currentIndex)) {
+            cout << "Index " << currentIndex << ": " << line << "\n";
+        }
+        currentIndex++;
+    }
+    inputFile.close();
+}
+
+
+//insert a new node
+void insertAthlete(const Athlete& athlete) {
+    Athlete* newNode = new Athlete(athlete);
+    if (!head) {
+        head = newNode;
+    } else {
+        Athlete* current = head;
+        while (current->next) {
+            current = current->next;
+        }
+        current->next = newNode;
+    }
+}
+
+Athlete* searchAthleteByID(const string& id) {
+    Athlete* current = head;
+    while (current) {
+        if (current->athleteID == id) {
+            return current;
+        }
+        current = current->next;
+    }
+    return nullptr;
+
+}
+
+// Delete all nodes in the linked list
+void deleteAllNodes() {
+    while (head) {
+        Athlete* temp = head;
+        head = head->next;
+        delete temp;
+    }
+}
+
+
+// Display athlete record
+
+void displayAthlete(const Athlete& athlete) {
+
+    cout << "-----------------------------------\n";
+    cout << "-----------------------------------\n";
+
+    animatedText("\nAthlete ID: " + athlete.athleteID +
+                 "\nName: " + athlete.name +
+                 "\nGender: " + athlete.gender +
+                 "\nType: " + athlete.type +
+                 "\nCountry Name: " + athlete.countryName +
+                 "\nNative Language: " + athlete.nativeLanguage +
+                 "\nEvent Type: " + athlete.eventType +
+                 "\nEvent Name: " + athlete.eventName +
+                 "\nDate of Birth: " + athlete.dob +
+                 "\nMedal ID: " + athlete.medalID +
+                 "\nMedal Type: " + athlete.medalType +
+                 "\nMedal Rank: " + athlete.medalRank +
+                 "\nOpponent Name: " + athlete.opponentName +
+                 "\nGame: " + athlete.game +
+                 "\nEvent Start Time: " + athlete.eventStartTime +
+                 "\nEvent End Time: " + athlete.eventEndTime +
+                 "\nVenue: " + athlete.venue +
+                 "\nStadium: " + athlete.stadium + "\n", 0);
+
+    cout << "-----------------------------------\n";
+    cout << "-----------------------------------\n";
+}
+
+
+
+
+// Function to display group mates'
+void displayGroupMates() {
+    // Group mate names
+    vector<string> groupMates = {
+        "Group Member : Rafiur Rahman Mashrafi,ID: 2221971042",
+        "Group Member : Dhruba Saha           ,ID: 2232537042",
+        "Group Member : Md. Tanvir Rahman     ,ID: 2211462042",
+        "Group Member : Foysal Mahamud        ,ID: 2231078042 "
+    };
+
+    for (int i = 0; i < groupMates.size(); ++i) {
+        animatedText(groupMates[i] + "\n", 50);
+
+
+
+}
+
+}
+// Main Menu
+void mainMenu() {
+    while (true) {
+        animatedText("\n--- Paris 2024 Olympic Summer Games---\n", 50);
+        animatedText("1. View Records\n2. Search for a Record\n3. Add a New Record\n4. Update an Existing Record\n5. Delete a Record\n6. Show Records After Change\n7. Exit\n", 25);
+        animatedText("Enter your choice: ", 25);
+
+        int choice;
+
+        // Input validation
+        if (!(cin >> choice)) { // Check if input is invalid
+            cin.clear(); // Clear error state
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Discard invalid input
+            animatedText("Invalid choice. Please input a number.\n", 50);
+            continue;
+            cout << "Enter your choice: ";
+        }
+            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clear the input buffer
+        switch (choice) {
+            case 1:
+                viewRecords();
+                break;
+            case 2:
+                searchAthlete();
+                break;
+            case 3:
+                addAthlete();
+                break;
+            case 4:
+                updateAthlete();
+                break;
+            case 5:
+                deleteAthlete();
+                break;
+            case 6:
+                showChangedRecords();
+                break;
+            case 7:
+                animatedText("Exiting the system...\n", 50);
+                displayGroupMates();
+
+                return;
+            default:
+                animatedText("Invalid choice. Please input the correct option.\n", 50);
+        }
+    }
+}
 
 
 
 
 // Main function
 int main() {
-    vector<Record> records = readCSV("Data1.csv");
-    int choice;
 
-    do {
-        cout << "\nMenu:\n";
-        cout << "1. View Records\n";
-        cout << "2. Search Record\n";
-        cout << "3. Add New Record\n";
-        cout << "4. Update Record\n";
-        cout << "5. Delete Record\n";
-        cout << "6. Search Medal Statistics by Country\n";
-        cout << "7. Exit\n";
-        cout << "Enter your choice: ";
-        cin >> choice;
+    loadFromCSV();
 
-        switch (choice) {
-            case 1:
-                viewRecords(records);
-                break;
-            case 2:
-                searchRecord(records);
-                break;
-            case 3:
-                addRecord(records);
-                break;
-            case 4:
-                updateRecord(records);
-                break;
-            case 5:
-                deleteRecord(records);
-                break;
-            case 6:
-                searchStatisticsByCountry(records);
-                break;
-            case 7:
-                writeCSV("Data1.csv", records);
-                cout << "Exiting program..." << endl;
-                break;
-            default:
-                cout << "Invalid choice!" << endl;
-        }
-    } while (choice != 7);
+    animatedText("------Welcome to Olympic Athlete Tracking System-------\n\n",50);
+
+    ensureDatabaseFileExists();
+
+    loadUsersFromFile();
+
+    animatedText("!Welcome to the Authentication System!\n", 10);
+
+    authenticationPage();
+
+    animatedText("Proceeding to the main system...\n", 10);
+
+    mainMenu();
+
+    //saveToCSV();
+
+    deleteAllNodes();
 
     return 0;
 }
