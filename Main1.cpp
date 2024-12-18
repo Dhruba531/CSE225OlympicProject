@@ -1,4 +1,4 @@
-#include <iostream>
+##include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -12,6 +12,9 @@
 #include <set>
 #include <fstream>
 #include <sstream>
+#include <map>
+#include <algorithm>
+
 
 using namespace std;
 
@@ -61,6 +64,13 @@ void saveUserToFile(const string& email, const string& password);
 void updateCSVRecord(const string& id, const Athlete& updatedAthlete);
 void displayThankYouMessage();
 void displayGroupMates();
+void showCountryStatistics();
+void showTotalAthletes();
+void showTopRankingCountriesAndAthletes();
+void showPopularSportsAndMedalCounts();
+
+
+
 
 
 // Animation helper
@@ -385,6 +395,46 @@ void viewRecords() {
 }
 
 
+// Function to traverse and display all data from the linked list
+void traverseData() {
+    if (!head) {
+        animatedText("No records to display. The list is empty.\n", 20);
+        return;
+    }
+
+    Athlete* current = head;
+    int index = 1;
+
+    cout << "\n--- Traversing All Athlete Records ---\n";
+    while (current) {
+        cout << "\nRecord " << index++ << ":\n";
+        displayAthlete(*current);
+        current = current->next;
+    }
+    animatedText("\nTraversal Complete!\n", 20);
+}
+// Function to read and display data directly from the CSV file
+void readData() {
+    ifstream file("athletes.csv");
+    if (!file.is_open()) {
+        animatedText("Error: Unable to open the CSV file.\n", 20);
+        return;
+    }
+
+    string line;
+    int index = 1;
+
+    cout << "\n--- Reading Athlete Records from CSV ---\n";
+    while (getline(file, line)) {
+        cout << "Record " << index++ << ": " << line << "\n";
+    }
+
+    file.close();
+    animatedText("\nCSV Reading Complete!\n", 20);
+}
+
+
+
 
 
 
@@ -524,16 +574,51 @@ void addAthlete() {
     }
 }
 
-// Save data to CSV
+
+
 
 bool saveToCSV() {
-    if (!saveToCSV()) {
-    animatedText("Error: Failed to save the record to CSV.\n", 15);
-} else {
-    animatedText("Record added successfully.\n", 5);
-}
+    // Open the CSV file in truncate mode to overwrite it
+    ofstream file("athletes.csv", ios::trunc);
+    
+    // Check if file opens successfully
+    if (!file.is_open()) {
+        animatedText("Error: Unable to open the CSV file for saving records.\n", 15);
+        return false;
+    }
 
+    // Pointer to traverse the linked list
+    Athlete* current = head;
 
+    // Iterate through the linked list and save data to CSV
+    while (current) {
+        file << current->athleteID << "," 
+             << current->name << "," 
+             << current->gender << "," 
+             << current->type << "," 
+             << current->countryName << "," 
+             << current->nativeLanguage << "," 
+             << current->eventType << "," 
+             << current->eventName << "," 
+             << current->dob << "," 
+             << current->medalID << "," 
+             << current->medalType << "," 
+             << current->medalRank << "," 
+             << current->opponentName << "," 
+             << current->game << "," 
+             << current->eventStartTime << "," 
+             << current->eventEndTime << "," 
+             << current->venue << "," 
+             << current->stadium << "\n";
+
+        current = current->next; // Move to the next node
+    }
+
+    // Close the file
+    file.close();
+
+    animatedText("All records have been successfully saved to athletes.csv.\n", 10);
+    return true; // Indicate success
 }
 
 // Update an existing record
@@ -872,6 +957,124 @@ void displayAthlete(const Athlete& athlete) {
     cout << "-----------------------------------\n";
 }
 
+// Function to show country statistics
+void showCountryStatistics() {
+    if (!head) {
+        animatedText("No records available to generate statistics.\n", 15);
+        return;
+    }
+
+    string countryName;
+    cout << "Enter the country name to view statistics: ";
+    getline(cin, countryName);
+
+    int totalAthletes = 0, goldMedals = 0, silverMedals = 0, bronzeMedals = 0;
+
+    Athlete* current = head;
+
+    // Traverse the linked list to gather statistics
+    while (current) {
+        if (current->countryName == countryName) {
+            totalAthletes++;
+
+            // Count medals based on medal type
+            if (current->medalType == "Gold") 
+                goldMedals++;
+            else if (current->medalType == "Silver") 
+                silverMedals++;
+            else if (current->medalType == "Bronze") 
+                bronzeMedals++;
+        }
+        current = current->next;
+    }
+
+    // Display the statistics
+    if (totalAthletes > 0) {
+        animatedText("\n--- Country Statistics ---\n", 25);
+        cout << "Country Name: " << countryName << "\n";
+        cout << "Total Athletes: " << totalAthletes << "\n";
+        cout << "Gold Medals: " << goldMedals << "\n";
+        cout << "Silver Medals: " << silverMedals << "\n";
+        cout << "Bronze Medals: " << bronzeMedals << "\n";
+    } else {
+        animatedText("No records found for the specified country.\n", 15);
+    }
+}
+// Function to display the total number of athletes participated
+void showTotalAthletes() {
+    if (!head) {
+        animatedText("No records available.\n", 15);
+        return;
+    }
+
+    set<string> uniqueAthletes; // Set to track unique athlete names
+    Athlete* current = head;
+
+    while (current) {
+        if (!current->name.empty()) {
+            uniqueAthletes.insert(current->name);
+        }
+        current = current->next;
+    }
+
+    animatedText("\n--- Olympic Participation Statistics ---\n", 25);
+    cout << "Total Athletes Participated in the Olympics: " << uniqueAthletes.size() << "\n";
+}
+
+// Function to display top 5 countries and top-performing athletes
+void showTopRankingCountriesAndAthletes() {
+    if (!head) {
+        animatedText("No records available to generate rankings.\n", 15);
+        return;
+    }
+
+    // Maps to store country and athlete medal counts
+    unordered_map<string, int> countryMedalCount;
+    unordered_map<string, int> athleteMedalCount;
+
+    Athlete* current = head;
+
+    // Traverse linked list to count medals
+    while (current) {
+        if (!current->countryName.empty()) {
+            countryMedalCount[current->countryName]++;
+        }
+        if (!current->name.empty()) {
+            athleteMedalCount[current->name]++;
+        }
+        current = current->next;
+    }
+
+    // Sort countries based on total medal count
+    vector<pair<string, int>> countryList(countryMedalCount.begin(), countryMedalCount.end());
+    sort(countryList.begin(), countryList.end(), [](const pair<string, int>& a, const pair<string, int>& b) {
+        return a.second > b.second;
+    });
+
+    // Sort athletes based on total medal count
+    vector<pair<string, int>> athleteList(athleteMedalCount.begin(), athleteMedalCount.end());
+    sort(athleteList.begin(), athleteList.end(), [](const pair<string, int>& a, const pair<string, int>& b) {
+        return a.second > b.second;
+    });
+
+    // Display the top 5 countries
+    animatedText("\n--- Top 5 Ranking Countries Based on Medal Count ---\n", 25);
+    int rank = 1;
+    for (const auto& country : countryList) {
+        cout << rank << ". " << country.first << " - Total Medals: " << country.second << "\n";
+        if (rank++ >= 5) break;
+    }
+
+    // Display the top 5 athletes
+    animatedText("\n--- Top 5 Performing Athletes Based on Medal Count ---\n", 25);
+    rank = 1;
+    for (const auto& athlete : athleteList) {
+        cout << rank << ". " << athlete.first << " - Total Medals: " << athlete.second << "\n";
+        if (rank++ >= 5) break;
+    }
+}
+
+
 
 
 
@@ -891,56 +1094,129 @@ void displayGroupMates() {
 
 
 }
-
 }
-// Main Menu
+
+void showPopularSportsAndMedalCounts() 
+{
+    if (!head) {
+        animatedText("No records available to analyze Olympic sports.\n", 15);
+        return;
+    }
+
+    unordered_map<string, int> sportMedalCount;
+    unordered_map<string, unordered_map<string, int>> eventMedalCount;
+
+    Athlete* current = head;
+    while (current) {
+        if (!current->eventType.empty()) {
+            sportMedalCount[current->eventType]++;
+            if (!current->eventName.empty()) {
+                eventMedalCount[current->eventType][current->eventName]++;
+            }
+        }
+        current = current->next;
+    }
+
+    vector<pair<string, int>> sortedSports(sportMedalCount.begin(), sportMedalCount.end());
+    sort(sortedSports.begin(), sortedSports.end(), [](const pair<string, int>& a, const pair<string, int>& b) {
+        return a.second > b.second;
+    });
+
+    animatedText("\n--- Most Popular Olympic Sports (by Medal Count) ---\n", 25);
+    for (const auto& sport : sortedSports) {
+        cout << sport.first << " - Total Medals: " << sport.second << "\n";
+    }
+
+    animatedText("\n--- Event-Specific Medal Counts ---\n", 25);
+    for (const auto& sport : sortedSports) {
+        cout << "\nSport: " << sport.first << "\n";
+        const auto& events = eventMedalCount[sport.first];
+        for (const auto& event : events) {
+            cout << "  Event: " << event.first << " - Medals: " << event.second << "\n";
+        }
+    }
+}
+
+
+
+
+
 void mainMenu() {
     while (true) {
-        animatedText("\n--- Paris 2024 Olympic Summer Games---\n", 50);
-        animatedText("1. View Records\n2. Search for a Record\n3. Add a New Record\n4. Update an Existing Record\n5. Delete a Record\n6. Show Records After Change\n7. Exit\n", 25);
+        animatedText("\n--- Paris 2024 Olympic Summer Games ---\n", 50);
+        animatedText("1. View Records\n", 25);
+        animatedText("2. Search for a Record\n", 25);
+        animatedText("3. Add a New Record\n", 25);
+        animatedText("4. Update an Existing Record\n", 25);
+        animatedText("5. Delete a Record\n", 25);
+        animatedText("6. Show Records After Change\n", 25);
+        animatedText("7. Traverse Data\n", 25);
+        animatedText("8. Read Data from CSV\n", 25);
+        animatedText("9. Show Country Statistics\n", 25);
+        animatedText("10. Show Total Athletes Participated\n", 25);
+        animatedText("11. Show Top Ranking Countries and Athletes\n", 25);
+        animatedText("12. Show Most Popular Sports and Event-Specific Medal Counts\n", 25);
+        animatedText("13. Exit\n", 25);
         animatedText("Enter your choice: ", 25);
 
         int choice;
 
         // Input validation
-        if (!(cin >> choice)) { // Check if input is invalid
-            cin.clear(); // Clear error state
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Discard invalid input
+        if (!(cin >> choice)) {
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
             animatedText("Invalid choice. Please input a number.\n", 50);
             continue;
-            cout << "Enter your choice: ";
         }
-            cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clear the input buffer
+        cin.ignore(numeric_limits<streamsize>::max(), '\n'); // Clear input buffer
+
+        // Switch case for menu options
         switch (choice) {
-            case 1:
-                viewRecords();
+            case 1: 
+                viewRecords(); 
                 break;
-            case 2:
-                searchAthlete();
+            case 2: 
+                searchAthlete(); 
                 break;
-            case 3:
-                addAthlete();
+            case 3: 
+                addAthlete(); 
                 break;
-            case 4:
-                updateAthlete();
+            case 4: 
+                updateAthlete(); 
                 break;
-            case 5:
-                deleteAthlete();
+            case 5: 
+                deleteAthlete(); 
                 break;
-            case 6:
-                showChangedRecords();
+            case 6: 
+                showChangedRecords(); 
                 break;
-            case 7:
+            case 7: 
+                traverseData(); 
+                break;
+            case 8: 
+                readData(); 
+                break;
+            case 9: 
+                showCountryStatistics(); 
+                break;
+            case 10: 
+                showTotalAthletes(); 
+                break;
+            case 11: 
+                showTopRankingCountriesAndAthletes(); 
+                break;
+            case 12: 
+                showPopularSportsAndMedalCounts(); 
+                break;
+            case 13:
                 animatedText("Exiting the system...\n", 50);
                 displayGroupMates();
-
                 return;
             default:
                 animatedText("Invalid choice. Please input the correct option.\n", 50);
         }
     }
 }
-
 
 
 
