@@ -1,4 +1,4 @@
-##include <iostream>
+#include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -395,24 +395,7 @@ void viewRecords() {
 }
 
 
-// Function to traverse and display all data from the linked list
-void traverseData() {
-    if (!head) {
-        animatedText("No records to display. The list is empty.\n", 20);
-        return;
-    }
 
-    Athlete* current = head;
-    int index = 1;
-
-    cout << "\n--- Traversing All Athlete Records ---\n";
-    while (current) {
-        cout << "\nRecord " << index++ << ":\n";
-        displayAthlete(*current);
-        current = current->next;
-    }
-    animatedText("\nTraversal Complete!\n", 20);
-}
 // Function to read and display data directly from the CSV file
 void readData() {
     ifstream file("athletes.csv");
@@ -964,9 +947,12 @@ void showCountryStatistics() {
         return;
     }
 
-    string countryName;
+    string inputCountry;
     cout << "Enter the country name to view statistics: ";
-    getline(cin, countryName);
+    getline(cin, inputCountry);
+
+    // Convert input to lowercase for case-insensitive comparison
+    transform(inputCountry.begin(), inputCountry.end(), inputCountry.begin(), ::tolower);
 
     int totalAthletes = 0, goldMedals = 0, silverMedals = 0, bronzeMedals = 0;
 
@@ -974,15 +960,19 @@ void showCountryStatistics() {
 
     // Traverse the linked list to gather statistics
     while (current) {
-        if (current->countryName == countryName) {
+        string currentCountry = current->countryName;
+        // Convert current record's country name to lowercase
+        transform(currentCountry.begin(), currentCountry.end(), currentCountry.begin(), ::tolower);
+
+        if (currentCountry == inputCountry) {
             totalAthletes++;
 
             // Count medals based on medal type
-            if (current->medalType == "Gold") 
+            if (current->medalType == "Gold Medal") 
                 goldMedals++;
-            else if (current->medalType == "Silver") 
+            else if (current->medalType == "Silver Medal") 
                 silverMedals++;
-            else if (current->medalType == "Bronze") 
+            else if (current->medalType == "Bronze Medal") 
                 bronzeMedals++;
         }
         current = current->next;
@@ -990,8 +980,8 @@ void showCountryStatistics() {
 
     // Display the statistics
     if (totalAthletes > 0) {
-        animatedText("\n--- Country Statistics ---\n", 25);
-        cout << "Country Name: " << countryName << "\n";
+        cout << "\n--- Country Statistics ---\n";
+        cout << "Country Name: " << inputCountry << "\n";
         cout << "Total Athletes: " << totalAthletes << "\n";
         cout << "Gold Medals: " << goldMedals << "\n";
         cout << "Silver Medals: " << silverMedals << "\n";
@@ -1000,6 +990,7 @@ void showCountryStatistics() {
         animatedText("No records found for the specified country.\n", 15);
     }
 }
+
 // Function to display the total number of athletes participated
 void showTotalAthletes() {
     if (!head) {
@@ -1150,13 +1141,11 @@ void mainMenu() {
         animatedText("4. Update an Existing Record\n", 25);
         animatedText("5. Delete a Record\n", 25);
         animatedText("6. Show Records After Change\n", 25);
-        animatedText("7. Traverse Data\n", 25);
-        animatedText("8. Read Data from CSV\n", 25);
-        animatedText("9. Show Country Statistics\n", 25);
-        animatedText("10. Show Total Athletes Participated\n", 25);
-        animatedText("11. Show Top Ranking Countries and Athletes\n", 25);
-        animatedText("12. Show Most Popular Sports and Event-Specific Medal Counts\n", 25);
-        animatedText("13. Exit\n", 25);
+        animatedText("7. Show Country Statistics\n", 25);
+        animatedText("8. Show Total Athletes Participated\n", 25);
+        animatedText("9. Show Top Ranking Countries and Athletes\n", 25);
+        animatedText("10. Show Most Popular Sports and Event-Specific Medal Counts\n", 25);
+        animatedText("11. Exit\n", 25);
         animatedText("Enter your choice: ", 25);
 
         int choice;
@@ -1191,24 +1180,18 @@ void mainMenu() {
                 showChangedRecords(); 
                 break;
             case 7: 
-                traverseData(); 
-                break;
-            case 8: 
-                readData(); 
-                break;
-            case 9: 
                 showCountryStatistics(); 
                 break;
-            case 10: 
+            case 8: 
                 showTotalAthletes(); 
                 break;
-            case 11: 
+            case 9: 
                 showTopRankingCountriesAndAthletes(); 
                 break;
-            case 12: 
+            case 10: 
                 showPopularSportsAndMedalCounts(); 
                 break;
-            case 13:
+            case 11:
                 animatedText("Exiting the system...\n", 50);
                 displayGroupMates();
                 return;
