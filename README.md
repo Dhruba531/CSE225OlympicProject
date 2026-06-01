@@ -2,7 +2,9 @@
 
 A C++17 command-line application for managing athlete records from the Paris 2024 Summer Olympics. Records are stored in a custom singly linked list, persisted to CSV, and gated behind a simple file-backed authentication system. Built as a Data Structures & Algorithms (CSE225) course project.
 
-> **Status:** Coursework project, refactored into a modular, cross-platform codebase. Builds on Windows, macOS, and Linux.
+> **Status:** Coursework project, refactored into a modular, cross-platform codebase. Builds on Windows, macOS, and Linux. Companion web dashboard auto-deploys to GitHub Pages.
+
+🔗 **Live dashboard:** https://dhruba531.github.io/CSE225OlympicProject/
 
 ---
 
@@ -65,7 +67,11 @@ CSE225OlympicProject/
 │   └── main.cpp
 ├── data/
 │   └── athletes.csv      # Paris 2024 athlete data
-├── docs/
+├── docs/                 # Static web dashboard (deployed to GitHub Pages)
+│   ├── index.html
+│   ├── styles.css
+│   ├── app.js
+│   ├── data/athletes.csv # Mirror of the root data file
 │   └── screenshots/      # Place demo images here
 ├── CMakeLists.txt
 ├── Makefile
@@ -165,6 +171,28 @@ CSE225 group project — North South University.
 - **Dhruba Saha** (ID: 2232537042) — maintainer
 - Md. Tanvir Rahman (ID: 2211462042)
 - Foysal Mahamud (ID: 2231078042)
+
+---
+
+## Web Dashboard
+
+A companion static dashboard lives in [`docs/`](docs/). To enable the live URL, go to **Repo Settings → Pages → Build and deployment → Source: Deploy from a branch → `main` / `/docs`** — GitHub will serve the dashboard at the URL shown above.
+
+Features:
+- Searchable, paginated athlete table with medal filter.
+- Top countries by medals (with gold / silver / bronze breakdown).
+- Top 20 athletes by medal count.
+- Most popular sports and event counts per sport.
+
+To run it locally:
+
+```bash
+cd docs
+python3 -m http.server 8000
+# open http://localhost:8000
+```
+
+Tech: vanilla HTML + CSS + JS, Chart.js loaded from CDN, zero build step.
 
 ---
 
